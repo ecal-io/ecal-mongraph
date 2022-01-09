@@ -1,3 +1,8 @@
+"""
+  @package ecal_mongraph
+  Create a graph out of a running eCAL network.
+"""
+
 import os
 import sys
 import time
@@ -12,35 +17,51 @@ import matplotlib.image as mpimg
 
 import networkx as nx
 
-import ecal.core.core as ecal
+import ecal.core.core as ecal_core
 
-############################################################################################
-# get_mon_d
-############################################################################################
-def get_mon_d():
+def get_mon_d() -> dict:
+  """ get eCAL monitoring dictionary
+
+  This function initializes eCAL, collects all items for a few seconds
+  and store them into a python dictionary.
+
+  :return: the monitoring dictionary
+  :rtype: dictionary
+  """
+
   # print eCAL version and date
-  print("eCAL %s (%s)\n"%(ecal.getversion(), ecal.getdate()))
+  print("eCAL %s (%s)\n"%(ecal_core.getversion(), ecal_core.getdate()))
 
   # initialize eCAL API
-  ecal.initialize([sys.argv[0]], "monitoring")
+  ecal_core.initialize([sys.argv[0]], "ecal_mongraph")
 
   # initialize eCAL monitoring API
-  ecal.mon_initialize()
+  ecal_core.mon_initialize()
+  # collect monitoring information
   time.sleep(2)
 
-  # get all eCAL entities
-  mon_d = ecal.mon_monitoring()
+  # get all eCAL entities as disctionary
+  mon_d = ecal_core.mon_monitoring()
 
   # finalize eCAL monitoring API
-  ecal.mon_finalize()
+  ecal_core.mon_finalize()
 
   # return monitoring dictionary
   return mon_d
 
-############################################################################################
-# get_sorted_d
-############################################################################################
-def get_sorted_d(mon_d):
+def get_sorted_d(mon_d) -> dict:
+  """ sort eCAL monitoring dictionary
+
+  The eCAL monitoring dictionary is sorted hierarchical from hosts to processes
+  to publisher and subscriber. This function is sorting out these entities by
+  topics to better find connected publisher and subscriber.
+
+  :param mon_d: the monitoring dictionary
+  :type mon_d: dictionary
+  :return: the topic based sorted monitoring dictionary
+  :rtype: dictionary
+  """
+
   # get topic list
   topics_l = mon_d[1]['topics']
 
@@ -55,7 +76,6 @@ def get_sorted_d(mon_d):
 
   # sort topics an collect information about them
   for topic in topics_l:
-    #sort_key = topic['hname'] + '@' + topic['uname'] + '@' + str(topic['pid'])
     sort_key = "%s-%s\n[%s]"%(topic['uname'], str(topic['pid']), topic['hname'])
     if topic['hname'] not in host_d:
       host_d[topic['hname']] = set()
@@ -89,10 +109,15 @@ def get_sorted_d(mon_d):
 
   return res_d
 
-############################################################################################
-# convert_to_tree
-############################################################################################
-def convert_to_tree(sorted_d):
+def convert_to_tree(sorted_d) -> dict:
+  """ convert the sorted monitoring dictionary into a XML tree
+
+  :param sorted_d: the sorted monitoring dictionary
+  :type sorted_d: dictionary
+  :return: the monitoring XML tree
+  :rtype: xmltree.Element
+  """
+
   host_d       = sorted_d['hosts']
   uname_d      = sorted_d['unames']
   topic_d      = sorted_d['topics']
@@ -138,15 +163,25 @@ def convert_to_tree(sorted_d):
   # return the tree
   return eroot
 
-############################################################################################
-# write_xml
-############################################################################################
 def write_xml(tree, target_file, show_file):
+  """ write / show the monitoring XML tree
+
+  :param tree: the monitoring XML tree
+  :type tree: xmltree.Element
+  :param target_file: file name to write the XML tree to
+  :type target_file: string
+  :param show_file: show the XML file with associated standard application
+  :type show_file: boolean
+  """
 
   # write to string and make it pretty
   raw_xml = xmltree.tostring(tree, 'utf-8')
   reparsed = minidom.parseString(raw_xml)
   xml_s = reparsed.toprettyxml(indent="  ")
+
+  # check extension
+  if os.path.splitext(target_file)[1].lower() != ".xml":
+    target_file += '.xml'
 
   # write the file
   open(target_file, "w").write(xml_s)
@@ -155,9 +190,6 @@ def write_xml(tree, target_file, show_file):
   if show_file:
     os.startfile(target_file)
 
-############################################################################################
-# render
-############################################################################################
 def nudge(pos, x_shift, y_shift):
   return {n:(x + x_shift, y + y_shift) for n,(x,y) in pos.items()}
 
@@ -213,6 +245,16 @@ def get_edges(pub_d, sub_d):
   return edges_d
 
 def render(sorted_d, target_file, show_file):
+  """ render / show the sorted monitoring dictionary as graph (PNG)
+
+  :param sorted_d: the sorted monitoring dictionary
+  :type sorted_d: dictionary
+  :param target_file: file name to write graph to (PNG)
+  :type target_file: string
+  :param show_file: show the graph file with associated standard application
+  :type show_file: boolean
+  """
+
   # create the graph
   G = nx.MultiDiGraph()
 
@@ -270,22 +312,19 @@ def render(sorted_d, target_file, show_file):
   #dot_G = nx.drawing.nx_pydot.to_pydot(G)
   #print(dot_G)
 
+  # check extension
+  if os.path.splitext(target_file)[1].lower() != ".png":
+    target_file += '.png'
+
   # create png
   ag = nx.drawing.nx_agraph.to_agraph(G)
   ag.layout('dot')
-  target_file += '.png'
   ag.draw(target_file)
 
   if show_file:
     os.startfile(target_file)
   
-############################################################################################
-# main
-############################################################################################
 if __name__ == "__main__":
   sorted_d = get_sorted_d(get_mon_d())
-
-  mon_tree = convert_to_tree(sorted_d)
-  write_xml(mon_tree, "_result_mon_xml.xml", False)
-
-  render(sorted_d, "_result_mon_graph", True)
+  write_xml(convert_to_tree(sorted_d), "_result_mon_graph", False)
+  render(sorted_d, "_result_mon_graph", False)

@@ -20,6 +20,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ecal_mongraph.py" />
+    <Compile Include="samples\group_node_a.py" />
+    <Compile Include="samples\group_node_b.py" />
+    <Compile Include="samples\group_node_c.py" />
+    <Compile Include="samples\multi_hello_rec.py" />
+    <Compile Include="samples\multi_hello_snd.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="samples\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>
