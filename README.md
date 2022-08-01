@@ -1,4 +1,4 @@
-# ecal_mongraph
+# ecal-mongraph
 Display ecal monitoring information as graph.
 
 ## Dependencies
